@@ -1,4 +1,16 @@
 import streamlit as st
+
+# إخفاء الهيدر والفوتر والـ Toolbar بالكامل
+st.markdown("""
+    <style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    [data-testid="stHeader"] {display: none !important;}
+    [data-testid="stToolbar"] {display: none !important;}
+    </style>
+""", unsafe_allow_html=True)
+
 import pandas as pd
 import io
 import openpyxl
