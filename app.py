@@ -1,6 +1,6 @@
 import streamlit as st
 
-# إخفاء الهيدر والفوتر والـ Toolbar بالكامل
+# كود إخفاء شريط Hosted with Streamlit والفوتر والهيدر بالكامل
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
@@ -8,6 +8,11 @@ st.markdown("""
     header {visibility: hidden;}
     [data-testid="stHeader"] {display: none !important;}
     [data-testid="stToolbar"] {display: none !important;}
+    [data-testid="stDecoration"] {display: none !important;}
+    [data-testid="stStatusWidget"] {display: none !important;}
+    .viewerBadge_container__163Vn {display: none !important;}
+    .viewerBadge_link__1S137 {display: none !important;}
+    div[class*="viewerBadge"] {display: none !important;}
     </style>
 """, unsafe_allow_html=True)
 
