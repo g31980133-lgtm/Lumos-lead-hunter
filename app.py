@@ -1,26 +1,38 @@
 import streamlit as st
 
-# أضمن كود لإخفاء الهيدر والفوتر والـ Badge الحمراء تماماً
+import streamlit.components.v1 as components
+
+# 1. إخفاء العناصر الداخلية بـ CSS
 st.markdown("""
     <style>
-    /* إخفاء الهيدر والقائمة والفوتر */
     #MainMenu {visibility: hidden !important;}
     footer {display: none !important; visibility: hidden !important;}
     header {visibility: hidden !important;}
     [data-testid="stHeader"] {display: none !important;}
     [data-testid="stToolbar"] {display: none !important;}
-    
-    /* إخفاء الـ Badge الحمراء وأي شريط مثبت تحت */
-    .viewerBadge_container__163Vn {display: none !important;}
-    .viewerBadge_link__1S137 {display: none !important;}
-    div[class*="viewerBadge"] {display: none !important;}
-    div[data-testid="stDecoration"] {display: none !important;}
-    
-    /* حيلة إخفاء العناصر العائمة من أسفل الشاشة */
-    iframe[title="streamlitApp"] {margin-bottom: -50px !important;}
-    body {overflow-x: hidden;}
+    [data-testid="stDecoration"] {display: none !important;}
+    [data-testid="stStatusWidget"] {display: none !important;}
     </style>
 """, unsafe_allow_html=True)
+
+# 2. إخفاء الـ Hosted Badge الخارجية بـ JavaScript
+components.html("""
+    <script>
+    function hideBadge() {
+        // البحث عن عنصر الـ Badge وإزالته
+        const badge = window.parent.document.querySelector('div[class*="viewerBadge"]') || 
+                      window.parent.document.querySelector('[data-testid="stDecoration"]') ||
+                      window.parent.document.querySelector('a[href*="streamlit.io"]');
+        if (badge) {
+            badge.style.display = 'none';
+            badge.remove();
+        }
+    }
+   // تشغيل الكود فور تحميل الصفحة وكل ثانية للتأكد من إخفائه
+    hideBadge();
+    setInterval(hideBadge, 500);
+    </script>
+""", height=0)
 
 import pandas as pd
 import io
