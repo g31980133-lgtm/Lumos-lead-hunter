@@ -1,18 +1,24 @@
 import streamlit as st
 
-# كود إخفاء شريط Hosted with Streamlit والفوتر والهيدر بالكامل
+# أضمن كود لإخفاء الهيدر والفوتر والـ Badge الحمراء تماماً
 st.markdown("""
     <style>
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
+    /* إخفاء الهيدر والقائمة والفوتر */
+    #MainMenu {visibility: hidden !important;}
+    footer {display: none !important; visibility: hidden !important;}
+    header {visibility: hidden !important;}
     [data-testid="stHeader"] {display: none !important;}
     [data-testid="stToolbar"] {display: none !important;}
-    [data-testid="stDecoration"] {display: none !important;}
-    [data-testid="stStatusWidget"] {display: none !important;}
+    
+    /* إخفاء الـ Badge الحمراء وأي شريط مثبت تحت */
     .viewerBadge_container__163Vn {display: none !important;}
     .viewerBadge_link__1S137 {display: none !important;}
     div[class*="viewerBadge"] {display: none !important;}
+    div[data-testid="stDecoration"] {display: none !important;}
+    
+    /* حيلة إخفاء العناصر العائمة من أسفل الشاشة */
+    iframe[title="streamlitApp"] {margin-bottom: -50px !important;}
+    body {overflow-x: hidden;}
     </style>
 """, unsafe_allow_html=True)
 
