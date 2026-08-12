@@ -8,15 +8,65 @@ from leads_scraper import run_lead_hunter
 
 st.set_page_config(page_title="TTP Lead Hunter Portal", page_icon="🌴", layout="wide")
 
+# Force Pure Light / White Theme Only
+st.markdown("""
+    <style>
+    /* تثبيت اللون الأبيض لجميع خلفيات التطبيق بدون استثناء */
+    html, body, [data-testid="stAppViewContainer"], .stApp {
+        background-color: #FFFFFF !important;
+        color: #000000 !important;
+    }
+    
+    [data-testid="stHeader"] {
+        background-color: #FFFFFF !important;
+    }
+
+    .main-title {
+        color: #1b365d;
+        font-family: 'Segoe UI', sans-serif;
+        font-weight: 700;
+        text-align: center;
+        margin-bottom: 0px;
+    }
+    .sub-title {
+        color: #666666;
+        font-size: 13px;
+        text-align: center;
+        letter-spacing: 1px;
+        margin-bottom: 25px;
+    }
+    .stTextInput>div>div>input {
+        border: 1px solid #1b365d !important;
+        border-radius: 6px;
+        background-color: #FFFFFF !important;
+        color: #000000 !important;
+    }
+    [data-testid="stForm"] {
+        border: none !important;
+        padding: 0px !important;
+        background-color: #FFFFFF !important;
+    }
+    .stButton>button, .stFormSubmitButton>button {
+        background-color: #1b365d !important;
+        color: white !important;
+        border-radius: 6px;
+        font-weight: 600;
+        height: 45px;
+        width: 100%;
+    }
+    div[data-testid="stColumn"] > div {
+        background-color: #FFFFFF !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 # --- نظام التراخيص والتحكم في الاشتراك (Subscription Control) ---
-# تقدر تعدل البيانات دي من عندك لتقفل أو تفتح الأكسيس للشركة
 CLIENT_LICENSE = {
     "company_name": "Total Trip Planners",
     "status": "Active",            # غيرها لـ "Disabled" عشان تقفل عليهم السيستم فوراً
     "expiry_date": "2026-12-31",   # تاريخ انتهاء الاشتراك (YYYY-MM-DD)
     "admin_user": "admin",
-    "admin_pass": "1234"
+    "admin_pass": "TTP2026"        # تم التحديث إلى TTP2026
 }
 
 def check_subscription():
