@@ -8,13 +8,13 @@ from leads_scraper import run_lead_hunter
 
 st.set_page_config(page_title="TTP Lead Hunter Portal", page_icon="🌴", layout="wide")
 
-# Injection JavaScript & CSS to purge Streamlit Badge from DOM completely
+# Force Light / White Theme Styling & Custom Interface
 st.markdown("""
     <style>
-    /* CSS الأساسي لتنظيف واجهة الصفحة */
+    /* إخفاء القوائم والأشرطة الداخلية */
     #MainMenu {visibility: hidden !important;}
-    footer {visibility: hidden !important; display: none !important;}
-    header {visibility: hidden !important; display: none !important;}
+    footer {visibility: hidden !important;}
+    header {visibility: hidden !important;}
     [data-testid="stHeader"] {display: none !important;}
     [data-testid="stToolbar"] {display: none !important;}
     [data-testid="stDecoration"] {display: none !important;}
@@ -57,33 +57,15 @@ st.markdown("""
         background-color: #FFFFFF;
     }
     </style>
-
-    <script>
-    // JS Script يخترق الـ Parent Window ويمسح الـ Badge من برة الـ iframe
-    function hideStreamlitBadge() {
-        try {
-            var parentDoc = window.parent.document;
-            var badges = parentDoc.querySelectorAll('div[class*="viewerBadge"], .viewerBadge_container__163Vn, a[href*="streamlit.io"]');
-            badges.forEach(function(el) {
-                el.style.display = 'none';
-                el.remove();
-            });
-        } catch (e) {
-            console.log(e);
-        }
-    }
-    setInterval(hideStreamlitBadge, 300);
-    </script>
 """, unsafe_allow_html=True)
 
 # --- نظام التراخيص والتحكم في الاشتراك (Subscription Control) ---
-# تقدر تعدل البيانات دي من عندك لتقفل أو تفتح الأكسيس للشركة
 CLIENT_LICENSE = {
     "company_name": "Total Trip Planners",
     "status": "Active",            # غيرها لـ "Disabled" عشان تقفل عليهم السيستم فوراً
     "expiry_date": "2026-12-31",   # تاريخ انتهاء الاشتراك (YYYY-MM-DD)
     "admin_user": "admin",
-    "admin_pass": "1234"
+    "admin_pass": "TTP2026"        # تم تحديث كلمة السر
 }
 
 def check_subscription():
