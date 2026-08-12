@@ -8,9 +8,16 @@ from leads_scraper import run_lead_hunter
 
 st.set_page_config(page_title="TTP Lead Hunter Portal", page_icon="🌴", layout="wide")
 
-# Force Light / White Theme Styling
+# Force Light / White Theme Styling & Hide Streamlit Branding/Footers
 st.markdown("""
     <style>
+    /* إخفاء القوائم والأشرطة السفلية الخاصة بـ Streamlit */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    div[data-testid="stDecoration"] {display: none;}
+    div[data-testid="stStatusWidget"] {display: none;}
+
     .stApp {
         background-color: #FFFFFF !important;
     }
