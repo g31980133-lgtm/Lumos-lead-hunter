@@ -1,39 +1,4 @@
 import streamlit as st
-
-import streamlit.components.v1 as components
-
-# 1. إخفاء العناصر الداخلية بـ CSS
-st.markdown("""
-    <style>
-    #MainMenu {visibility: hidden !important;}
-    footer {display: none !important; visibility: hidden !important;}
-    header {visibility: hidden !important;}
-    [data-testid="stHeader"] {display: none !important;}
-    [data-testid="stToolbar"] {display: none !important;}
-    [data-testid="stDecoration"] {display: none !important;}
-    [data-testid="stStatusWidget"] {display: none !important;}
-    </style>
-""", unsafe_allow_html=True)
-
-# 2. إخفاء الـ Hosted Badge الخارجية بـ JavaScript
-components.html("""
-    <script>
-    function hideBadge() {
-        // البحث عن عنصر الـ Badge وإزالته
-        const badge = window.parent.document.querySelector('div[class*="viewerBadge"]') || 
-                      window.parent.document.querySelector('[data-testid="stDecoration"]') ||
-                      window.parent.document.querySelector('a[href*="streamlit.io"]');
-        if (badge) {
-            badge.style.display = 'none';
-            badge.remove();
-        }
-    }
-   // تشغيل الكود فور تحميل الصفحة وكل ثانية للتأكد من إخفائه
-    hideBadge();
-    setInterval(hideBadge, 500);
-    </script>
-""", height=0)
-
 import pandas as pd
 import io
 import openpyxl
