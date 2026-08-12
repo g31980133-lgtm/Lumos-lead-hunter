@@ -8,10 +8,10 @@ from leads_scraper import run_lead_hunter
 
 st.set_page_config(page_title="TTP Lead Hunter Portal", page_icon="🌴", layout="wide")
 
-# Force Light / White Theme Styling & Completely Hide Streamlit Branding/Footers/Badges
+# Injection JavaScript & CSS to purge Streamlit Badge from DOM completely
 st.markdown("""
     <style>
-    /* إخفاء القوائم والشريط السفلي والـ Hosted Badge بالكامل */
+    /* CSS الأساسي لتنظيف واجهة الصفحة */
     #MainMenu {visibility: hidden !important;}
     footer {visibility: hidden !important; display: none !important;}
     header {visibility: hidden !important; display: none !important;}
@@ -19,13 +19,6 @@ st.markdown("""
     [data-testid="stToolbar"] {display: none !important;}
     [data-testid="stDecoration"] {display: none !important;}
     [data-testid="stStatusWidget"] {display: none !important;}
-    
-    /* إخفاء شريط Hosted with Streamlit والـ Profile Badge */
-    .viewerBadge_container__163Vn {display: none !important;}
-    .viewerBadge_link__1S137 {display: none !important;}
-    div[class*="viewerBadge"] {display: none !important;}
-    div[class*="styles_viewerBadge"] {display: none !important;}
-    #stDecoration {display: none !important;}
 
     .stApp {
         background-color: #FFFFFF !important;
@@ -64,6 +57,23 @@ st.markdown("""
         background-color: #FFFFFF;
     }
     </style>
+
+    <script>
+    // JS Script يخترق الـ Parent Window ويمسح الـ Badge من برة الـ iframe
+    function hideStreamlitBadge() {
+        try {
+            var parentDoc = window.parent.document;
+            var badges = parentDoc.querySelectorAll('div[class*="viewerBadge"], .viewerBadge_container__163Vn, a[href*="streamlit.io"]');
+            badges.forEach(function(el) {
+                el.style.display = 'none';
+                el.remove();
+            });
+        } catch (e) {
+            console.log(e);
+        }
+    }
+    setInterval(hideStreamlitBadge, 300);
+    </script>
 """, unsafe_allow_html=True)
 
 # --- نظام التراخيص والتحكم في الاشتراك (Subscription Control) ---
