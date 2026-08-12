@@ -8,13 +8,15 @@ from leads_scraper import run_lead_hunter
 
 st.set_page_config(page_title="TTP Lead Hunter Portal", page_icon="🌴", layout="wide")
 
+
 # --- نظام التراخيص والتحكم في الاشتراك (Subscription Control) ---
+# تقدر تعدل البيانات دي من عندك لتقفل أو تفتح الأكسيس للشركة
 CLIENT_LICENSE = {
     "company_name": "Total Trip Planners",
     "status": "Active",            # غيرها لـ "Disabled" عشان تقفل عليهم السيستم فوراً
     "expiry_date": "2026-12-31",   # تاريخ انتهاء الاشتراك (YYYY-MM-DD)
     "admin_user": "admin",
-    "admin_pass": "TTP2026"        # تم تحديث كلمة السر
+    "admin_pass": "1234"
 }
 
 def check_subscription():
