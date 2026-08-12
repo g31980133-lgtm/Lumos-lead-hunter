@@ -8,57 +8,6 @@ from leads_scraper import run_lead_hunter
 
 st.set_page_config(page_title="TTP Lead Hunter Portal", page_icon="🌴", layout="wide")
 
-# Force Light / White Theme Styling & Custom Interface
-st.markdown("""
-    <style>
-    /* إخفاء القوائم والأشرطة الداخلية */
-    #MainMenu {visibility: hidden !important;}
-    footer {visibility: hidden !important;}
-    header {visibility: hidden !important;}
-    [data-testid="stHeader"] {display: none !important;}
-    [data-testid="stToolbar"] {display: none !important;}
-    [data-testid="stDecoration"] {display: none !important;}
-    [data-testid="stStatusWidget"] {display: none !important;}
-
-    .stApp {
-        background-color: #FFFFFF !important;
-    }
-    .main-title {
-        color: #1b365d;
-        font-family: 'Segoe UI', sans-serif;
-        font-weight: 700;
-        text-align: center;
-        margin-bottom: 0px;
-    }
-    .sub-title {
-        color: #666666;
-        font-size: 13px;
-        text-align: center;
-        letter-spacing: 1px;
-        margin-bottom: 25px;
-    }
-    .stTextInput>div>div>input {
-        border: 1px solid #1b365d !important;
-        border-radius: 6px;
-    }
-    [data-testid="stForm"] {
-        border: none !important;
-        padding: 0px !important;
-    }
-    .stButton>button, .stFormSubmitButton>button {
-        background-color: #1b365d !important;
-        color: white !important;
-        border-radius: 6px;
-        font-weight: 600;
-        height: 45px;
-        width: 100%;
-    }
-    div[data-testid="stColumn"] > div {
-        background-color: #FFFFFF;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
 # --- نظام التراخيص والتحكم في الاشتراك (Subscription Control) ---
 CLIENT_LICENSE = {
     "company_name": "Total Trip Planners",
