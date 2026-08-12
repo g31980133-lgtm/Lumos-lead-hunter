@@ -8,15 +8,24 @@ from leads_scraper import run_lead_hunter
 
 st.set_page_config(page_title="TTP Lead Hunter Portal", page_icon="🌴", layout="wide")
 
-# Force Light / White Theme Styling & Hide Streamlit Branding/Footers
+# Force Light / White Theme Styling & Completely Hide Streamlit Branding/Footers/Badges
 st.markdown("""
     <style>
-    /* إخفاء القوائم والأشرطة السفلية الخاصة بـ Streamlit */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    div[data-testid="stDecoration"] {display: none;}
-    div[data-testid="stStatusWidget"] {display: none;}
+    /* إخفاء القوائم والشريط السفلي والـ Hosted Badge بالكامل */
+    #MainMenu {visibility: hidden !important;}
+    footer {visibility: hidden !important; display: none !important;}
+    header {visibility: hidden !important; display: none !important;}
+    [data-testid="stHeader"] {display: none !important;}
+    [data-testid="stToolbar"] {display: none !important;}
+    [data-testid="stDecoration"] {display: none !important;}
+    [data-testid="stStatusWidget"] {display: none !important;}
+    
+    /* إخفاء شريط Hosted with Streamlit والـ Profile Badge */
+    .viewerBadge_container__163Vn {display: none !important;}
+    .viewerBadge_link__1S137 {display: none !important;}
+    div[class*="viewerBadge"] {display: none !important;}
+    div[class*="styles_viewerBadge"] {display: none !important;}
+    #stDecoration {display: none !important;}
 
     .stApp {
         background-color: #FFFFFF !important;
