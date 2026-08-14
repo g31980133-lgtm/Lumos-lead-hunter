@@ -8,6 +8,18 @@ from serpapi import GoogleSearch
 SERPAPI_KEY = "499177367fb1a108b1deef404bba6bae8ee23d2525d6d8e90a5b0abe2fc05bdf"
 CACHE_FILE = "leads_cache.json"
 
+# --- قائمة الكلمات والمجالات والامتدادات المستبعدة (الفلتر) ---
+# تقدر تزود أي كلمة جديدة هنا مستقبلاً
+EXCLUDED_KEYWORDS = [
+    "entertainment",
+    "ministry",
+    "government",
+    "goverment",  # أضفنا السبيبتنج الغلط للحياطة
+    ".org",
+    ".gov",
+    ".edu"
+]
+
 def load_cache():
     if os.path.exists(CACHE_FILE):
         try:
@@ -44,6 +56,14 @@ def get_clean_name(name):
         clean_name = re.sub(rf'\b{city}\b', '', clean_name, flags=re.IGNORECASE)
     return clean_name.strip()
 
+def check_exclusion(text_to_check):
+    """دالة بفحص وجود أي كلمة من الفلتر داخل النص"""
+    text_lower = text_to_check.lower()
+    for kw in EXCLUDED_KEYWORDS:
+        if kw in text_lower:
+            return True, kw  # ترجع True مع اسم الكلمة التي تم فلترتها
+    return False, None
+
 def run_lead_hunter(companies_list, start_idx=1, end_idx=None, status_callback=None):
     cache = load_cache()
     final_leads = []
@@ -67,10 +87,24 @@ def run_lead_hunter(companies_list, start_idx=1, end_idx=None, status_callback=N
         if status_callback:
             status_callback(idx - start_pos, len(target_list), company_raw_str)
             
+        # 1. المرحلة الأولى: فحص اسم الشركة المباشر قبل أي سرش
+        is_excluded, matched_kw = check_exclusion(company_raw_str)
+        if is_excluded:
+            filtered_entry = {
+                "Company Name": company_raw_str,
+                "Verification Status": f"Filtered: {matched_kw}",
+                "Primary US Phone": "N/A",
+                "Secondary US Phone": "N/A",
+                "Contact Person / Role": "Excluded Sector",
+                "Source / Reference": "Name Filtered"
+            }
+            final_leads.append(filtered_entry)
+            continue
+
         # Check Cache to save API credits
         if cache_key in cache:
             cached_item = cache[cache_key].copy()
-            cached_item["Company Name"] = company_raw_str # Preserve original name from sheet
+            cached_item["Company Name"] = company_raw_str # Preserve original name
             final_leads.append(cached_item)
             continue
 
@@ -79,6 +113,7 @@ def run_lead_hunter(companies_list, start_idx=1, end_idx=None, status_callback=N
         confidence = "Needs Review"
         source_url = "N/A"
         found_phones = []
+        filter_reason = None
         
         params = {
             "q": f"{clean_company} corporate headquarters phone number contact",
@@ -92,18 +127,30 @@ def run_lead_hunter(companies_list, start_idx=1, end_idx=None, status_callback=N
             search = GoogleSearch(params)
             results = search.get_dict()
             
-            if "knowledge_graph" in results and "phone" in results["knowledge_graph"]:
-                valid_p = format_us_phone(results["knowledge_graph"]["phone"])
-                if valid_p:
-                    found_phones.append(valid_p)
-                    confidence = "High Confidence"
-                    source_url = results["knowledge_graph"].get("website", "Google Verified Knowledge Graph")
+            # فحص الـ Knowledge Graph لوموجود فيها لينك أو كلام فلترة
+            if "knowledge_graph" in results:
+                kg = results["knowledge_graph"]
+                kg_text = f"{kg.get('title', '')} {kg.get('type', '')} {kg.get('website', '')}"
+                is_ex, kw = check_exclusion(kg_text)
+                if is_ex:
+                    filter_reason = kw
             
-            if "organic_results" in results:
+            if not filter_reason and "organic_results" in results:
                 for item in results["organic_results"]:
                     link = item.get("link", "").lower()
-                    snippet = f"{item.get('title', '')} {item.get('snippet', '')}"
+                    snippet = f"{item.get('title', '')} {item.get('snippet', '')}".lower()
                     
+                    # 2 & 3. فحص الدومين والمحتوى الخاص بالشركة
+                    is_ex_link, kw_link = check_exclusion(link)
+                    is_ex_snip, kw_snip = check_exclusion(snippet)
+                    
+                    if is_ex_link:
+                        filter_reason = kw_link
+                        break
+                    elif is_ex_snip:
+                        filter_reason = kw_snip
+                        break
+
                     matches = re.finditer(phone_pattern, snippet)
                     for match in matches:
                         valid_p = format_us_phone(match.group(0))
@@ -125,22 +172,33 @@ def run_lead_hunter(companies_list, start_idx=1, end_idx=None, status_callback=N
         except Exception:
             pass
 
-        if len(found_phones) >= 1:
-            primary_phone = found_phones[0]
-            if confidence == "Needs Review":
-                confidence = "High Confidence"
-                
-        if len(found_phones) >= 2:
-            secondary_phone = found_phones[1]
+        # إذا ثبت إن الشركة تحتوي على كلمة فلترة في المحتوى أو اللينك
+        if filter_reason:
+            lead_entry = {
+                "Company Name": company_raw_str,
+                "Verification Status": f"Filtered: {filter_reason}",
+                "Primary US Phone": "N/A",
+                "Secondary US Phone": "N/A",
+                "Contact Person / Role": "Excluded Sector",
+                "Source / Reference": "Content/Domain Filtered"
+            }
+        else:
+            if len(found_phones) >= 1:
+                primary_phone = found_phones[0]
+                if confidence == "Needs Review":
+                    confidence = "High Confidence"
+                    
+            if len(found_phones) >= 2:
+                secondary_phone = found_phones[1]
 
-        lead_entry = {
-            "Company Name": company_raw_str,
-            "Verification Status": confidence,
-            "Primary US Phone": primary_phone,
-            "Secondary US Phone": secondary_phone,
-            "Contact Person / Role": "N/A",
-            "Source / Reference": source_url
-        }
+            lead_entry = {
+                "Company Name": company_raw_str,
+                "Verification Status": confidence,
+                "Primary US Phone": primary_phone,
+                "Secondary US Phone": secondary_phone,
+                "Contact Person / Role": "N/A",
+                "Source / Reference": source_url
+            }
         
         # Save to cache
         cache[cache_key] = lead_entry
