@@ -65,9 +65,14 @@ def get_clean_name(name):
     return clean_name.strip()
 
 def check_keyword_exclusion(text_to_check):
-    text_lower = text_to_check.lower()
+    """فحص مرن ومباشر يصطاد الكلمات الممنوعة مهما كانت حالتها"""
+    if not text_to_check:
+        return False, None
+    
+    text_lower = str(text_to_check).lower()
     for kw in EXCLUDED_KEYWORDS:
-        if re.search(rf'\b{re.escape(kw)}', text_lower):
+        kw_lower = kw.lower().strip()
+        if kw_lower in text_lower:
             return True, kw
     return False, None
 
