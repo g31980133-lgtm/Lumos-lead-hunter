@@ -9,15 +9,19 @@ from serpapi import GoogleSearch
 SERPAPI_KEY = "499177367fb1a108b1deef404bba6bae8ee23d2525d6d8e90a5b0abe2fc05bdf"
 CACHE_FILE = "leads_cache.json"
 
-# كلمات حظر المحتوى والأسماء
+# قائمة الكلمات المستبعدة (وسّعنا نطاق الترفيه والحكومة)
 EXCLUDED_KEYWORDS = [
     "entertainment",
+    "film",
+    "films",
+    "movie",
+    "studio",
     "ministry",
     "government",
     "goverment"
 ]
 
-# امتدادات المواقع المستبعدة للموقع الرسمي فقط
+# امتدادات ودومينات مستبعدة
 EXCLUDED_EXTENSIONS = [".org", ".gov", ".edu"]
 
 def load_cache():
@@ -57,19 +61,18 @@ def get_clean_name(name):
     return clean_name.strip()
 
 def check_keyword_exclusion(text_to_check):
-    """فحص وجود كلمات استبعاد في النص"""
     text_lower = text_to_check.lower()
     for kw in EXCLUDED_KEYWORDS:
-        if kw in text_lower:
+        # فحص وجود الكلمة ككلمة مستقلة أو جزء من الكلمة
+        if re.search(rf'\b{re.escape(kw)}', text_lower):
             return True, kw
     return False, None
 
-def check_official_domain_extension(url):
-    """فحص امتداد موقع الشركة الرسمي فقط"""
+def check_domain_exclusion(url):
     try:
         domain = urlparse(url).netloc.lower()
         for ext in EXCLUDED_EXTENSIONS:
-            if domain.endswith(ext):
+            if domain.endswith(ext) or f"{ext}/" in url.lower():
                 return True, ext
     except Exception:
         pass
@@ -97,7 +100,7 @@ def run_lead_hunter(companies_list, start_idx=1, end_idx=None, status_callback=N
         if status_callback:
             status_callback(idx - start_pos, len(target_list), company_raw_str)
             
-        # 1. فحص اسم الشركة الأولية
+        # 1. فحص الاسم المباشر
         is_excluded, matched_kw = check_keyword_exclusion(company_raw_str)
         if is_excluded:
             filtered_entry = {
@@ -130,42 +133,47 @@ def run_lead_hunter(companies_list, start_idx=1, end_idx=None, status_callback=N
             search = GoogleSearch(params)
             results = search.get_dict()
             
-            # فحص الـ Knowledge Graph والموقع الرسمي أولاً
+            # فحص الـ Knowledge Graph
             if "knowledge_graph" in results:
                 kg = results["knowledge_graph"]
                 kg_website = kg.get("website", "")
-                kg_title = kg.get("title", "")
-                kg_type = kg.get("type", "")
+                kg_text = f"{kg.get('title', '')} {kg.get('type', '')} {kg.get('description', '')}"
                 
-                # فحص دومين موقع الشركة الرسمي
                 if kg_website:
-                    is_ext_ex, ext_kw = check_official_domain_extension(kg_website)
+                    is_ext_ex, ext_kw = check_domain_exclusion(kg_website)
                     if is_ext_ex:
                         filter_reason = ext_kw
                 
-                # فحص محتوى Knowledge Graph
                 if not filter_reason:
-                    is_ex, kw = check_keyword_exclusion(f"{kg_title} {kg_type}")
+                    is_ex, kw = check_keyword_exclusion(kg_text)
                     if is_ex:
                         filter_reason = kw
 
+            # فحص أول 5 نتائج في جوجل فحصاً شاملاً
             if not filter_reason and "organic_results" in results:
-                for idx_res, item in enumerate(results["organic_results"]):
+                for idx_res, item in enumerate(results["organic_results"][:5]):
                     link = item.get("link", "").lower()
-                    snippet = f"{item.get('title', '')} {item.get('snippet', '')}".lower()
+                    title = item.get("title", "").lower()
+                    snippet = item.get("snippet", "").lower()
+                    full_text = f"{title} {snippet}"
                     
-                    # النتيجة الأولى في سيرش جوجل تعتبر الموقع الرسمي للشركة
-                    if idx_res == 0:
-                        is_ext_ex, ext_kw = check_official_domain_extension(link)
-                        if is_ext_ex:
-                            filter_reason = ext_kw
-                            break
+                    # فحص الدومين لنتائج البحث
+                    is_ext_ex, ext_kw = check_domain_exclusion(link)
+                    if is_ext_ex:
+                        filter_reason = ext_kw
+                        break
                     
-                    # فحص الكلمات المستبعدة في الوصف والمحتوى
-                    is_ex_snip, kw_snip = check_keyword_exclusion(snippet)
+                    # فحص الكلمات في عنوان النتيجة ووصفها
+                    is_ex_snip, kw_snip = check_keyword_exclusion(full_text)
                     if is_ex_snip:
                         filter_reason = kw_snip
                         break
+
+            # لو الشركة طلعت مطابقة للفلتر، نلغي البحث تماماً
+            if not filter_reason and "organic_results" in results:
+                for item in results["organic_results"]:
+                    link = item.get("link", "").lower()
+                    snippet = f"{item.get('title', '')} {item.get('snippet', '')}".lower()
 
                     matches = re.finditer(phone_pattern, snippet)
                     for match in matches:
