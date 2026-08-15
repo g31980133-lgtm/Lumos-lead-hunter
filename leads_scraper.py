@@ -9,7 +9,7 @@ from serpapi import GoogleSearch
 SERPAPI_KEY = "499177367fb1a108b1deef404bba6bae8ee23d2525d6d8e90a5b0abe2fc05bdf"
 CACHE_FILE = "leads_cache.json"
 
-# قائمة الكلمات المستبعدة (وسّعنا نطاق الترفيه والحكومة)
+# كلمات حظر المجالات (ترفيه / حكومة)
 EXCLUDED_KEYWORDS = [
     "entertainment",
     "film",
@@ -21,7 +21,7 @@ EXCLUDED_KEYWORDS = [
     "goverment"
 ]
 
-# امتدادات ودومينات مستبعدة
+# امتدادات حظر المواقع الرسمية فقط
 EXCLUDED_EXTENSIONS = [".org", ".gov", ".edu"]
 
 def load_cache():
@@ -63,16 +63,16 @@ def get_clean_name(name):
 def check_keyword_exclusion(text_to_check):
     text_lower = text_to_check.lower()
     for kw in EXCLUDED_KEYWORDS:
-        # فحص وجود الكلمة ككلمة مستقلة أو جزء من الكلمة
         if re.search(rf'\b{re.escape(kw)}', text_lower):
             return True, kw
     return False, None
 
-def check_domain_exclusion(url):
+def is_official_domain_excluded(url):
+    """فحص هل موقع الشركة الرسمي نفسه آخره .org أو .gov أو .edu"""
     try:
         domain = urlparse(url).netloc.lower()
         for ext in EXCLUDED_EXTENSIONS:
-            if domain.endswith(ext) or f"{ext}/" in url.lower():
+            if domain.endswith(ext):
                 return True, ext
     except Exception:
         pass
@@ -100,7 +100,7 @@ def run_lead_hunter(companies_list, start_idx=1, end_idx=None, status_callback=N
         if status_callback:
             status_callback(idx - start_pos, len(target_list), company_raw_str)
             
-        # 1. فحص الاسم المباشر
+        # 1. فحص اسم الشركة المباشر
         is_excluded, matched_kw = check_keyword_exclusion(company_raw_str)
         if is_excluded:
             filtered_entry = {
@@ -133,14 +133,15 @@ def run_lead_hunter(companies_list, start_idx=1, end_idx=None, status_callback=N
             search = GoogleSearch(params)
             results = search.get_dict()
             
-            # فحص الـ Knowledge Graph
+            # 2. فحص الـ Knowledge Graph والموقع الرسمي أولاً
             if "knowledge_graph" in results:
                 kg = results["knowledge_graph"]
                 kg_website = kg.get("website", "")
                 kg_text = f"{kg.get('title', '')} {kg.get('type', '')} {kg.get('description', '')}"
                 
+                # لو الموقع الرسمي نفسه آخره .org / .gov
                 if kg_website:
-                    is_ext_ex, ext_kw = check_domain_exclusion(kg_website)
+                    is_ext_ex, ext_kw = is_official_domain_excluded(kg_website)
                     if is_ext_ex:
                         filter_reason = ext_kw
                 
@@ -149,32 +150,28 @@ def run_lead_hunter(companies_list, start_idx=1, end_idx=None, status_callback=N
                     if is_ex:
                         filter_reason = kw
 
-            # فحص أول 5 نتائج في جوجل فحصاً شاملاً
+            # 3. فحص نتائج البحث العادية
             if not filter_reason and "organic_results" in results:
-                for idx_res, item in enumerate(results["organic_results"][:5]):
+                for idx_res, item in enumerate(results["organic_results"]):
                     link = item.get("link", "").lower()
                     title = item.get("title", "").lower()
                     snippet = item.get("snippet", "").lower()
                     full_text = f"{title} {snippet}"
                     
-                    # فحص الدومين لنتائج البحث
-                    is_ext_ex, ext_kw = check_domain_exclusion(link)
-                    if is_ext_ex:
-                        filter_reason = ext_kw
-                        break
-                    
-                    # فحص الكلمات في عنوان النتيجة ووصفها
+                    # فحص الدومين الرسمي فقط لو كانت النتيجة الأولى هي موقع الشركة
+                    if idx_res == 0:
+                        is_ext_ex, ext_kw = is_official_domain_excluded(link)
+                        if is_ext_ex:
+                            filter_reason = ext_kw
+                            break
+
+                    # فحص كلمات الحظر (ترفيه/حكومة) في المحتوى
                     is_ex_snip, kw_snip = check_keyword_exclusion(full_text)
                     if is_ex_snip:
                         filter_reason = kw_snip
                         break
 
-            # لو الشركة طلعت مطابقة للفلتر، نلغي البحث تماماً
-            if not filter_reason and "organic_results" in results:
-                for item in results["organic_results"]:
-                    link = item.get("link", "").lower()
-                    snippet = f"{item.get('title', '')} {item.get('snippet', '')}".lower()
-
+                    # استخراج أرقام الهواتف
                     matches = re.finditer(phone_pattern, snippet)
                     for match in matches:
                         valid_p = format_us_phone(match.group(0))
