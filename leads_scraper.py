@@ -82,7 +82,6 @@ def is_official_domain_excluded(url):
     return False, None
 
 def run_lead_hunter(companies_list, start_idx=1, end_idx=None, status_callback=None):
-    # 1. تحميل الكاش القديم قبل البدء
     cache = load_cache()
     final_leads = []
     
@@ -104,15 +103,7 @@ def run_lead_hunter(companies_list, start_idx=1, end_idx=None, status_callback=N
         if status_callback:
             status_callback(idx - start_pos, len(target_list), company_raw_str)
             
-        # 2. فحص النوتة أولاً: لو الشركة اتسرش عليها قبل كده تجيب النتيجة فوراً بدون الـ API!
-        if cache_key in cache:
-            cached_entry = cache[cache_key].copy()
-            # الحفاظ على الاسم المكتوب في الشيت الحالي
-            cached_entry["Company Name"] = company_raw_str
-            final_leads.append(cached_entry)
-            continue
-
-        # 3. فحص اسم الشركة المباشر من الفلتر
+        # 🟢 الخطوة 1: الفحص بالفلتر الأول على اسم الشركة مباشرةً
         is_excluded, matched_kw = check_keyword_exclusion(company_raw_str)
         if is_excluded:
             filtered_entry = {
@@ -123,11 +114,14 @@ def run_lead_hunter(companies_list, start_idx=1, end_idx=None, status_callback=N
                 "Contact Person / Role": "Excluded Sector",
                 "Source / Reference": "Name Filtered"
             }
-            # حفظ في النوتة
-            cache[cache_key] = filtered_entry
-            save_cache(cache)
-            
             final_leads.append(filtered_entry)
+            continue  # اطلع فوراً واستبعدها من غير ما تقرأ الكاش ولا تستهلك API
+
+        # 🟢 الخطوة 2: الفحص في الكاش (بعد ما تأكدنا إن الاسم مش ممنوع)
+        if cache_key in cache:
+            cached_entry = cache[cache_key].copy()
+            cached_entry["Company Name"] = company_raw_str
+            final_leads.append(cached_entry)
             continue
 
         primary_phone = "Not Found"
@@ -149,7 +143,7 @@ def run_lead_hunter(companies_list, start_idx=1, end_idx=None, status_callback=N
             search = GoogleSearch(params)
             results = search.get_dict()
             
-            # 4. فحص الـ Knowledge Graph
+            # فحص الـ Knowledge Graph
             if "knowledge_graph" in results:
                 kg = results["knowledge_graph"]
                 kg_website = kg.get("website", "")
@@ -165,7 +159,7 @@ def run_lead_hunter(companies_list, start_idx=1, end_idx=None, status_callback=N
                     if is_ex:
                         filter_reason = kw
 
-            # 5. فحص نتائج البحث العادية
+            # فحص نتائج البحث العادية
             if not filter_reason and "organic_results" in results:
                 for idx_res, item in enumerate(results["organic_results"]):
                     link = item.get("link", "").lower()
@@ -173,7 +167,6 @@ def run_lead_hunter(companies_list, start_idx=1, end_idx=None, status_callback=N
                     snippet = item.get("snippet", "").lower()
                     full_text = f"{title} {snippet} {link}"
 
-                    # فحص الدومين والاسم والكلمات المستبعدة
                     is_ex_snip, kw_snip = check_keyword_exclusion(full_text)
                     if is_ex_snip:
                         filter_reason = kw_snip
@@ -185,7 +178,6 @@ def run_lead_hunter(companies_list, start_idx=1, end_idx=None, status_callback=N
                             filter_reason = ext_kw
                             break
 
-                    # استخراج الهواتف
                     matches = re.finditer(phone_pattern, snippet)
                     for match in matches:
                         valid_p = format_us_phone(match.group(0))
@@ -234,7 +226,7 @@ def run_lead_hunter(companies_list, start_idx=1, end_idx=None, status_callback=N
                 "Source / Reference": source_url
             }
         
-        # 6. حفظ النتيجة في "النوتة" لاستخدامها مستقبلاً وتوفير الـ API
+        # حفظ النتيجة الموثوقة فقط في الكاش
         cache[cache_key] = lead_entry
         save_cache(cache)
         
