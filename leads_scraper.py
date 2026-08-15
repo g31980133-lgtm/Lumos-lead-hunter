@@ -3,22 +3,22 @@ import re
 import os
 import json
 import phonenumbers
+from urllib.parse import urlparse
 from serpapi import GoogleSearch
 
 SERPAPI_KEY = "499177367fb1a108b1deef404bba6bae8ee23d2525d6d8e90a5b0abe2fc05bdf"
 CACHE_FILE = "leads_cache.json"
 
-# --- قائمة الكلمات والمجالات والامتدادات المستبعدة (الفلتر) ---
-# تقدر تزود أي كلمة جديدة هنا مستقبلاً
+# كلمات حظر المحتوى والأسماء
 EXCLUDED_KEYWORDS = [
     "entertainment",
     "ministry",
     "government",
-    "goverment",  # أضفنا السبيبتنج الغلط للحياطة
-    ".org",
-    ".gov",
-    ".edu"
+    "goverment"
 ]
+
+# امتدادات المواقع المستبعدة للموقع الرسمي فقط
+EXCLUDED_EXTENSIONS = [".org", ".gov", ".edu"]
 
 def load_cache():
     if os.path.exists(CACHE_FILE):
@@ -56,19 +56,29 @@ def get_clean_name(name):
         clean_name = re.sub(rf'\b{city}\b', '', clean_name, flags=re.IGNORECASE)
     return clean_name.strip()
 
-def check_exclusion(text_to_check):
-    """دالة بفحص وجود أي كلمة من الفلتر داخل النص"""
+def check_keyword_exclusion(text_to_check):
+    """فحص وجود كلمات استبعاد في النص"""
     text_lower = text_to_check.lower()
     for kw in EXCLUDED_KEYWORDS:
         if kw in text_lower:
-            return True, kw  # ترجع True مع اسم الكلمة التي تم فلترتها
+            return True, kw
+    return False, None
+
+def check_official_domain_extension(url):
+    """فحص امتداد موقع الشركة الرسمي فقط"""
+    try:
+        domain = urlparse(url).netloc.lower()
+        for ext in EXCLUDED_EXTENSIONS:
+            if domain.endswith(ext):
+                return True, ext
+    except Exception:
+        pass
     return False, None
 
 def run_lead_hunter(companies_list, start_idx=1, end_idx=None, status_callback=None):
     cache = load_cache()
     final_leads = []
     
-    # Range handling
     total_len = len(companies_list)
     start_pos = max(0, start_idx - 1)
     end_pos = end_idx if end_idx and end_idx <= total_len else total_len
@@ -87,8 +97,8 @@ def run_lead_hunter(companies_list, start_idx=1, end_idx=None, status_callback=N
         if status_callback:
             status_callback(idx - start_pos, len(target_list), company_raw_str)
             
-        # 1. المرحلة الأولى: فحص اسم الشركة المباشر قبل أي سرش
-        is_excluded, matched_kw = check_exclusion(company_raw_str)
+        # 1. فحص اسم الشركة الأولية
+        is_excluded, matched_kw = check_keyword_exclusion(company_raw_str)
         if is_excluded:
             filtered_entry = {
                 "Company Name": company_raw_str,
@@ -99,13 +109,6 @@ def run_lead_hunter(companies_list, start_idx=1, end_idx=None, status_callback=N
                 "Source / Reference": "Name Filtered"
             }
             final_leads.append(filtered_entry)
-            continue
-
-        # Check Cache to save API credits
-        if cache_key in cache:
-            cached_item = cache[cache_key].copy()
-            cached_item["Company Name"] = company_raw_str # Preserve original name
-            final_leads.append(cached_item)
             continue
 
         primary_phone = "Not Found"
@@ -127,27 +130,40 @@ def run_lead_hunter(companies_list, start_idx=1, end_idx=None, status_callback=N
             search = GoogleSearch(params)
             results = search.get_dict()
             
-            # فحص الـ Knowledge Graph لوموجود فيها لينك أو كلام فلترة
+            # فحص الـ Knowledge Graph والموقع الرسمي أولاً
             if "knowledge_graph" in results:
                 kg = results["knowledge_graph"]
-                kg_text = f"{kg.get('title', '')} {kg.get('type', '')} {kg.get('website', '')}"
-                is_ex, kw = check_exclusion(kg_text)
-                if is_ex:
-                    filter_reason = kw
-            
+                kg_website = kg.get("website", "")
+                kg_title = kg.get("title", "")
+                kg_type = kg.get("type", "")
+                
+                # فحص دومين موقع الشركة الرسمي
+                if kg_website:
+                    is_ext_ex, ext_kw = check_official_domain_extension(kg_website)
+                    if is_ext_ex:
+                        filter_reason = ext_kw
+                
+                # فحص محتوى Knowledge Graph
+                if not filter_reason:
+                    is_ex, kw = check_keyword_exclusion(f"{kg_title} {kg_type}")
+                    if is_ex:
+                        filter_reason = kw
+
             if not filter_reason and "organic_results" in results:
-                for item in results["organic_results"]:
+                for idx_res, item in enumerate(results["organic_results"]):
                     link = item.get("link", "").lower()
                     snippet = f"{item.get('title', '')} {item.get('snippet', '')}".lower()
                     
-                    # 2 & 3. فحص الدومين والمحتوى الخاص بالشركة
-                    is_ex_link, kw_link = check_exclusion(link)
-                    is_ex_snip, kw_snip = check_exclusion(snippet)
+                    # النتيجة الأولى في سيرش جوجل تعتبر الموقع الرسمي للشركة
+                    if idx_res == 0:
+                        is_ext_ex, ext_kw = check_official_domain_extension(link)
+                        if is_ext_ex:
+                            filter_reason = ext_kw
+                            break
                     
-                    if is_ex_link:
-                        filter_reason = kw_link
-                        break
-                    elif is_ex_snip:
+                    # فحص الكلمات المستبعدة في الوصف والمحتوى
+                    is_ex_snip, kw_snip = check_keyword_exclusion(snippet)
+                    if is_ex_snip:
                         filter_reason = kw_snip
                         break
 
@@ -172,7 +188,6 @@ def run_lead_hunter(companies_list, start_idx=1, end_idx=None, status_callback=N
         except Exception:
             pass
 
-        # إذا ثبت إن الشركة تحتوي على كلمة فلترة في المحتوى أو اللينك
         if filter_reason:
             lead_entry = {
                 "Company Name": company_raw_str,
@@ -180,7 +195,7 @@ def run_lead_hunter(companies_list, start_idx=1, end_idx=None, status_callback=N
                 "Primary US Phone": "N/A",
                 "Secondary US Phone": "N/A",
                 "Contact Person / Role": "Excluded Sector",
-                "Source / Reference": "Content/Domain Filtered"
+                "Source / Reference": "Filtered"
             }
         else:
             if len(found_phones) >= 1:
