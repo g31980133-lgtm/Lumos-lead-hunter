@@ -9,7 +9,7 @@ from serpapi import GoogleSearch
 SERPAPI_KEY = "499177367fb1a108b1deef404bba6bae8ee23d2525d6d8e90a5b0abe2fc05bdf"
 CACHE_FILE = "leads_cache.json"
 
-# كلمات حظر المجالات (ترفيه / حكومة)
+# كلمات ومصطلحات الحظر المباشر
 EXCLUDED_KEYWORDS = [
     "entertainment",
     "film",
@@ -18,13 +18,16 @@ EXCLUDED_KEYWORDS = [
     "studio",
     "ministry",
     "government",
-    "goverment"
+    "goverment",
+    "wikipedia",
+    "wikimedia",
+    "pedia"
 ]
 
-# امتدادات حظر المواقع الرسمية فقط
 EXCLUDED_EXTENSIONS = [".org", ".gov", ".edu"]
 
 def load_cache():
+    """تحميل النوتة (الكاش) لو موجودة"""
     if os.path.exists(CACHE_FILE):
         try:
             with open(CACHE_FILE, "r", encoding="utf-8") as f:
@@ -34,6 +37,7 @@ def load_cache():
     return {}
 
 def save_cache(cache_data):
+    """حفظ وحماية النوتة من الضياع"""
     try:
         with open(CACHE_FILE, "w", encoding="utf-8") as f:
             json.dump(cache_data, f, ensure_ascii=False, indent=4)
@@ -68,7 +72,6 @@ def check_keyword_exclusion(text_to_check):
     return False, None
 
 def is_official_domain_excluded(url):
-    """فحص هل موقع الشركة الرسمي نفسه آخره .org أو .gov أو .edu"""
     try:
         domain = urlparse(url).netloc.lower()
         for ext in EXCLUDED_EXTENSIONS:
@@ -79,6 +82,7 @@ def is_official_domain_excluded(url):
     return False, None
 
 def run_lead_hunter(companies_list, start_idx=1, end_idx=None, status_callback=None):
+    # 1. تحميل الكاش القديم قبل البدء
     cache = load_cache()
     final_leads = []
     
@@ -100,7 +104,15 @@ def run_lead_hunter(companies_list, start_idx=1, end_idx=None, status_callback=N
         if status_callback:
             status_callback(idx - start_pos, len(target_list), company_raw_str)
             
-        # 1. فحص اسم الشركة المباشر
+        # 2. فحص النوتة أولاً: لو الشركة اتسرش عليها قبل كده تجيب النتيجة فوراً بدون الـ API!
+        if cache_key in cache:
+            cached_entry = cache[cache_key].copy()
+            # الحفاظ على الاسم المكتوب في الشيت الحالي
+            cached_entry["Company Name"] = company_raw_str
+            final_leads.append(cached_entry)
+            continue
+
+        # 3. فحص اسم الشركة المباشر من الفلتر
         is_excluded, matched_kw = check_keyword_exclusion(company_raw_str)
         if is_excluded:
             filtered_entry = {
@@ -111,6 +123,10 @@ def run_lead_hunter(companies_list, start_idx=1, end_idx=None, status_callback=N
                 "Contact Person / Role": "Excluded Sector",
                 "Source / Reference": "Name Filtered"
             }
+            # حفظ في النوتة
+            cache[cache_key] = filtered_entry
+            save_cache(cache)
+            
             final_leads.append(filtered_entry)
             continue
 
@@ -133,13 +149,12 @@ def run_lead_hunter(companies_list, start_idx=1, end_idx=None, status_callback=N
             search = GoogleSearch(params)
             results = search.get_dict()
             
-            # 2. فحص الـ Knowledge Graph والموقع الرسمي أولاً
+            # 4. فحص الـ Knowledge Graph
             if "knowledge_graph" in results:
                 kg = results["knowledge_graph"]
                 kg_website = kg.get("website", "")
                 kg_text = f"{kg.get('title', '')} {kg.get('type', '')} {kg.get('description', '')}"
                 
-                # لو الموقع الرسمي نفسه آخره .org / .gov
                 if kg_website:
                     is_ext_ex, ext_kw = is_official_domain_excluded(kg_website)
                     if is_ext_ex:
@@ -150,28 +165,27 @@ def run_lead_hunter(companies_list, start_idx=1, end_idx=None, status_callback=N
                     if is_ex:
                         filter_reason = kw
 
-            # 3. فحص نتائج البحث العادية
+            # 5. فحص نتائج البحث العادية
             if not filter_reason and "organic_results" in results:
                 for idx_res, item in enumerate(results["organic_results"]):
                     link = item.get("link", "").lower()
                     title = item.get("title", "").lower()
                     snippet = item.get("snippet", "").lower()
-                    full_text = f"{title} {snippet}"
-                    
-                    # فحص الدومين الرسمي فقط لو كانت النتيجة الأولى هي موقع الشركة
+                    full_text = f"{title} {snippet} {link}"
+
+                    # فحص الدومين والاسم والكلمات المستبعدة
+                    is_ex_snip, kw_snip = check_keyword_exclusion(full_text)
+                    if is_ex_snip:
+                        filter_reason = kw_snip
+                        break
+
                     if idx_res == 0:
                         is_ext_ex, ext_kw = is_official_domain_excluded(link)
                         if is_ext_ex:
                             filter_reason = ext_kw
                             break
 
-                    # فحص كلمات الحظر (ترفيه/حكومة) في المحتوى
-                    is_ex_snip, kw_snip = check_keyword_exclusion(full_text)
-                    if is_ex_snip:
-                        filter_reason = kw_snip
-                        break
-
-                    # استخراج أرقام الهواتف
+                    # استخراج الهواتف
                     matches = re.finditer(phone_pattern, snippet)
                     for match in matches:
                         valid_p = format_us_phone(match.group(0))
@@ -220,7 +234,7 @@ def run_lead_hunter(companies_list, start_idx=1, end_idx=None, status_callback=N
                 "Source / Reference": source_url
             }
         
-        # Save to cache
+        # 6. حفظ النتيجة في "النوتة" لاستخدامها مستقبلاً وتوفير الـ API
         cache[cache_key] = lead_entry
         save_cache(cache)
         
