@@ -9,7 +9,7 @@ from serpapi import GoogleSearch
 SERPAPI_KEY = "499177367fb1a108b1deef404bba6bae8ee23d2525d6d8e90a5b0abe2fc05bdf"
 CACHE_FILE = "leads_cache.json"
 
-# كلمات ومصطلحات الحظر المباشر
+# كلمات ومصطلحات الحظر المباشر (تم حذف مصطلحات ويكيبيديا لتجنب الفلترة الخاطئة)
 EXCLUDED_KEYWORDS = [
     "entertainment",
     "film",
@@ -18,13 +18,11 @@ EXCLUDED_KEYWORDS = [
     "studio",
     "ministry",
     "government",
-    "goverment",
-    "wikipedia",
-    "wikimedia",
-    "pedia"
+    "goverment"
 ]
 
-EXCLUDED_EXTENSIONS = [".org", ".gov", ".edu"]
+# الامتدادات والنطاقات الممنوعة
+EXCLUDED_EXTENSIONS = [".org", ".gov", ".edu", "wikipedia.org", "wikimedia.org"]
 
 def load_cache():
     """تحميل النوتة (الكاش) لو موجودة"""
@@ -80,7 +78,7 @@ def is_official_domain_excluded(url):
     try:
         domain = urlparse(url).netloc.lower()
         for ext in EXCLUDED_EXTENSIONS:
-            if domain.endswith(ext):
+            if domain.endswith(ext) or ext in domain:
                 return True, ext
     except Exception:
         pass
@@ -170,9 +168,11 @@ def run_lead_hunter(companies_list, start_idx=1, end_idx=None, status_callback=N
                     link = item.get("link", "").lower()
                     title = item.get("title", "").lower()
                     snippet = item.get("snippet", "").lower()
-                    full_text = f"{title} {snippet} {link}"
+                    
+                    # فحص الكلمات المفتاحية في العنوان والوصف بدون الرابط لتجنب حظر ويكيبيديا
+                    text_content = f"{title} {snippet}"
 
-                    is_ex_snip, kw_snip = check_keyword_exclusion(full_text)
+                    is_ex_snip, kw_snip = check_keyword_exclusion(text_content)
                     if is_ex_snip:
                         filter_reason = kw_snip
                         break
