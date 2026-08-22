@@ -6,9 +6,9 @@ from datetime import datetime
 from openpyxl.styles import PatternFill, Font, Alignment
 from leads_scraper import run_lead_hunter
 
-st.set_page_config(page_title="Lead Hunter Portal", page_icon="🌴", layout="wide")
+st.set_page_config(page_title="TTP Lead Hunter Portal", page_icon="🌴", layout="wide")
 
-# Force Pure Light / White Theme Only & Remove Header Elements
+# Force Pure Light / White Theme Only
 st.markdown("""
     <style>
     /* تثبيت اللون الأبيض لجميع خلفيات التطبيق بدون استثناء */
@@ -62,11 +62,11 @@ st.markdown("""
 
 # --- نظام التراخيص والتحكم في الاشتراك (Subscription Control) ---
 CLIENT_LICENSE = {
-    "company_name": "Lead Portal",
+    "company_name": "Total Trip Planners",
     "status": "Active",            # غيرها لـ "Disabled" عشان تقفل عليهم السيستم فوراً
     "expiry_date": "2026-12-31",   # تاريخ انتهاء الاشتراك (YYYY-MM-DD)
     "admin_user": "admin",
-    "admin_pass": "2026"           # تم التحديث إلى 2026
+    "admin_pass": "TTP2026"        # تم التحديث إلى TTP2026
 }
 
 def check_subscription():
@@ -86,11 +86,16 @@ if "authenticated" not in st.session_state:
 def login():
     col1, col2, col3 = st.columns([1.2, 2, 1.2])
     with col2:
-        st.markdown("<h2 class='main-title'>Lead Hunter Portal</h2>", unsafe_allow_html=True)
-        st.markdown("<p class='sub-title'>AUTOMATED B2B LEAD EXTRACTION & VERIFICATION ENGINE</p>", unsafe_allow_html=True)
+        try:
+            st.image("logo.png", width=220)
+        except Exception:
+            pass
+        
+        st.markdown("<h2 class='main-title'>Total Trip Planners</h2>", unsafe_allow_html=True)
+        st.markdown("<p class='sub-title'>THE BEST ROOMS IN THE BEST HOTELS, WORLDWIDE</p>", unsafe_allow_html=True)
         
         with st.form("login_form", clear_on_submit=False):
-            username = st.text_input("Username", placeholder="Enter username")
+            username = st.text_input("Corporate Username", placeholder="Enter your corporate username")
             password = st.text_input("Password", type="password", placeholder="••••••••")
             submit_button = st.form_submit_button("Sign In to Portal", use_container_width=True)
             
@@ -146,9 +151,14 @@ def generate_colored_excel(df):
 if not st.session_state.authenticated:
     login()
 else:
-    col_head, col_out = st.columns([5, 1])
+    col_logo, col_head, col_out = st.columns([1, 4, 1])
+    with col_logo:
+        try:
+            st.image("logo.png", width=130)
+        except Exception:
+            pass
     with col_head:
-        st.markdown("<h2 style='color: #1b365d; margin: 0;'>Lead Hunter Portal</h2>", unsafe_allow_html=True)
+        st.markdown("<h2 style='color: #1b365d; margin: 0;'>Total Trip Planners - Lead Portal</h2>", unsafe_allow_html=True)
         st.caption("Automated Corporate Lead Verification & Cost Optimization Engine")
     with col_out:
         if st.button("Sign Out"):
@@ -212,6 +222,6 @@ else:
             st.download_button(
                 label="📥 Download Color-Coded Excel Sheet (.xlsx)",
                 data=excel_colored_data,
-                file_name="Verified_Corporate_Leads.xlsx",
+                file_name="TTP_Verified_Corporate_Leads.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
